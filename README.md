@@ -18,7 +18,7 @@ pip install flask flask-socketio
 ## Boot-up Behavior
 Should start up automatically during boot-up.
 I changed the following on the Jetson:
-- Create a file at `/etc/systemd/system/radar_control.service` with sudo. Content of the `radar_control.service` file can be found in this repository.
+- Create a file with content given by `radar_control.service` using the command  `sudo nano /etc/systemd/system/radar_control.service`. (the same file exists in this repository for your reference)
 - Then enable the service using:
 ```bash
 sudo systemctl daemon-reload
