@@ -1,0 +1,12 @@
+[Unit]
+Description=Recording Control Flask App
+After=network.target
+
+[Service]
+User=radar
+WorkingDirectory=/home/radar/Documents/radar_web_app_control
+ExecStart=/usr/bin/python3 /home/radar/Documents/radar_web_app_control/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
