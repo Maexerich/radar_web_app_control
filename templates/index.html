@@ -12,6 +12,8 @@
 </head>
 <body>
     <h1>Recording Control</h1>
+    <label for="bag-name">Bag Name:</label>
+    <input type="text" id="bag-name" name="bag_name">
     <button id="start-btn">Start Recording</button>
     <button id="stop-btn">Stop Recording</button>
     <p id="status"></p>
@@ -30,7 +32,16 @@
 
         // Handle Start button click.
         document.getElementById('start-btn').addEventListener('click', function() {
-            fetch('/start', { method: 'POST' })
+            var bagName = document.getElementById('bag-name').value;
+            fetch('/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'bag_name': bagName
+                })
+            })
             .then(response => response.json())
             .then(data => {
                 document.getElementById('status').innerText = data.status;
