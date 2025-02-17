@@ -2,8 +2,12 @@
 import os
 import subprocess
 import threading
+import logging
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -28,10 +32,11 @@ def index():
 def start_recording():
     global roslaunch_process
     if roslaunch_process is None:
-        # Adjust the command below to suit your setup.
-        # For example, this command starts a launch file that controls your sensor and rosbag recording.
-        command = ['roslaunch', 'zadarlabs_arm_ros1', 'master.launch']
+        # Full path to the roslaunch executable
+        roslaunch_path = '/opt/ros/noetic/bin/roslaunch'
+        command = ['bash', '-c', f'source /opt/ros/noetic/setup.bash && source ~/catkin_ws/devel/setup.bash && {roslaunch_path} zadarlabs_arm_ros1 master.launch'] # Extremely 'hacky' but it works!!!
         try:
+            logging.debug(f"Starting command: {command}")
             roslaunch_process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
@@ -42,6 +47,7 @@ def start_recording():
             threading.Thread(target=read_process_output, args=(roslaunch_process,), daemon=True).start()
             return jsonify({'status': 'Recording started successfully.'})
         except Exception as e:
+            logging.error(f"Failed to start recording: {str(e)}")
             return jsonify({'status': f'Failed to start recording: {str(e)}'}), 500
     else:
         return jsonify({'status': 'Recording is already running.'}), 400
@@ -61,4 +67,4 @@ def stop_recording():
 
 if __name__ == '__main__':
     # The app will listen on all interfaces on port 5000
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

@@ -32,8 +32,13 @@ sudo systemctl status radar_control.service
 ```
 
 ## Regular start-up
+Run this at least once
 ```bash
 export FLASK_APP=app.py
 export FLASK_ENV=development # Optional, can be changed to production
 flask run
 ```
+Then to start-up:
+```bash
+/usr/bin/python3 /home/radar/Documents/radar_web_app_control/app.py
+```	
