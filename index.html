@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Recording Control</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.3/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #log-output { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; }
+        button { margin: 5px; padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Recording Control</h1>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn">Stop Recording</button>
+    <p id="status"></p>
+    <h2>Live Terminal Feed</h2>
+    <pre id="log-output"></pre>
+
+    <script>
+        var socket = io();
+
+        // Update the log output when receiving new log messages.
+        socket.on('log_update', function(data) {
+            var logOutput = document.getElementById('log-output');
+            logOutput.textContent += data.data;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        });
+
+        // Handle Start button click.
+        document.getElementById('start-btn').addEventListener('click', function() {
+            fetch('/start', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').innerText = data.status;
+            });
+        });
+
+        // Handle Stop button click.
+        document.getElementById('stop-btn').addEventListener('click', function() {
+            fetch('/stop', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').innerText = data.status;
+            });
+        });
+    </script>
+</body>
+</html>
