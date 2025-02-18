@@ -5,7 +5,9 @@ Else, use `hostname -I` to find your IP and then locate website at: `http://<ip_
 
 # Description
 Web application to control data recording of radar test rig.
-Test rig has:
+In essence, this repository contains only the Web-Interface to start and stop ROSBAG recordings of the `master.launch` file from the [GitHub ZadarLabs Arm ROS1](https://github.com/Maexerich/zadarlabs_arm_ros1) ROS repository.
+
+As of now, the test rig has:
 - ZadarLabs zPrime radar sensor
 - Texas Instruments (TI) AWR1843 radar sensor
 - a IMU (don't know what type)
