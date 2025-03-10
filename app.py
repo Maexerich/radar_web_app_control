@@ -36,7 +36,7 @@ def start_recording():
         roslaunch_path = '/opt/ros/noetic/bin/roslaunch'
         bag_name = request.form.get('bag_name', '')  # Get the bag_name from the request, default to an empty string
         bag_name_param = f' bag_name:={bag_name}' if bag_name else ''
-        command = ['bash', '-c', f'source /opt/ros/noetic/setup.bash && source ~/catkin_ws/devel/setup.bash && {roslaunch_path} zadarlabs_arm_ros1 master.launch record:=true{bag_name_param}'] # Extremely 'hacky' but it works!!!
+        command = ['bash', '-c', f'source /opt/ros/noetic/setup.bash && source ~/catkin_ws/devel/setup.bash && {roslaunch_path} radar_rig_sensor_fusion master.launch record:=true{bag_name_param}'] # Extremely 'hacky' but it works!!!
         try:
             logging.debug(f"Starting command: {command}")
             roslaunch_process = subprocess.Popen(
