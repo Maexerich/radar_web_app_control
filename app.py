@@ -62,7 +62,20 @@ def start_recording():
         roslaunch_path = '/opt/ros/noetic/bin/roslaunch'
         bag_name = request.form.get('bag_name', '')
         bag_name_param = f' bag_name:={bag_name}' if bag_name else ''
-        command = ['bash', '-c', f'source /opt/ros/noetic/setup.bash && source ~/catkin_ws/devel/setup.bash && {roslaunch_path} radar_rig_sensor_fusion master.launch record:=true{bag_name_param}']
+        
+        # Get the launch file name from the form (default "master")
+        launch_file = request.form.get('launch_file', 'master').strip()
+        
+        # Check if the launch file exists in the expected directory.
+        launch_file_dir = os.path.expanduser("~/catkin_ws/src/radar_rig_sensor_fusion/launch")
+        launch_file_path = os.path.join(launch_file_dir, f"{launch_file}.launch")
+        if not os.path.exists(launch_file_path):
+            error_message = f"The launch file {launch_file}.launch does not exist! Default is master.launch"
+            socketio.emit('log_update', {'data': f"\n[ERROR] {error_message}\n"})
+            return jsonify({'status': error_message}), 400
+
+        # Build command using the provided launch file.
+        command = ['bash', '-c', f'source /opt/ros/noetic/setup.bash && source ~/catkin_ws/devel/setup.bash && {roslaunch_path} radar_rig_sensor_fusion {launch_file}.launch record:=true{bag_name_param}']
 
         try:
             logging.debug(f"Starting command: {command}")
@@ -97,11 +110,11 @@ def stop_recording():
     global roslaunch_process, forward_output, streaming_timer
     if roslaunch_process is not None:
         try:
-            # Cancel any current timer (in case we're still in the initial 15-second window)
+            # Cancel any current timer (in case we're still in the initial window)
             if streaming_timer is not None:
                 streaming_timer.cancel()
             
-            # Re-enable output forwarding for an additional 15 seconds.
+            # Re-enable output forwarding for an additional period.
             forward_output = True
             
             # Set a new timer that will terminate the process after 1 seconds.
