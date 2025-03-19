@@ -14,23 +14,39 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 
 roslaunch_process = None
-streaming_active = False
-streaming_ready = threading.Event()
+# New global variables:
+forward_output = False      # Controls whether output is forwarded to the client.
+streaming_timer = None      # Holds the active timer.
+
+def disable_forwarding():
+    """Disable output forwarding after a set period."""
+    global forward_output
+    forward_output = False
+    socketio.emit('log_update', {'data': "\n[Live feed is turned off after 10 seconds.]\n"})
+
+def terminate_process():
+    """Terminate the ROS launch process and send final status."""
+    global roslaunch_process, forward_output
+    if roslaunch_process is not None:
+        try:
+            roslaunch_process.terminate()
+            roslaunch_process.wait()
+            roslaunch_process = None
+            forward_output = False
+            socketio.emit('log_update', {'data': "\n[Recording finished successfully.]\n" + "\n" * 5})
+            socketio.emit('status_update', {'status': 'finished recording'})
+        except Exception as e:
+            logging.error(f"Error terminating process: {str(e)}")
 
 def read_process_output(process):
-    global streaming_active
-    start_time = time.time()
-    streaming_ready.set()  # Signal that streaming is ready
-
+    """
+    Continuously read from the process’s output.
+    Lines are forwarded to the website only when forward_output is True.
+    """
     for line in iter(process.stdout.readline, ''):
-        if not streaming_active:
-            break
         if line:
-            socketio.emit('log_update', {'data': line})
-            if time.time() - start_time > 10:
-                socketio.emit('log_update', {'data': "\n[Live feed is turned off after 10 seconds.]\n"})
-                streaming_active = False
-                break
+            if forward_output:
+                socketio.emit('log_update', {'data': line})
         else:
             break
     process.stdout.close()
@@ -41,7 +57,7 @@ def index():
 
 @app.route('/start', methods=['POST'])
 def start_recording():
-    global roslaunch_process, streaming_active
+    global roslaunch_process, forward_output, streaming_timer
     if roslaunch_process is None:
         roslaunch_path = '/opt/ros/noetic/bin/roslaunch'
         bag_name = request.form.get('bag_name', '')
@@ -56,11 +72,18 @@ def start_recording():
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            streaming_active = True
+            # Enable forwarding immediately.
+            forward_output = True
             socketio.emit('status_update', {'status': 'recording'})
             
-            # Start a background thread to stream terminal output.
+            # Start a background thread to continuously read output.
             threading.Thread(target=read_process_output, args=(roslaunch_process,), daemon=True).start()
+            
+            # Set a timer to disable forwarding after 10 seconds.
+            if streaming_timer is not None:
+                streaming_timer.cancel()
+            streaming_timer = threading.Timer(10, disable_forwarding)
+            streaming_timer.start()
 
             return jsonify({'status': 'Recording started successfully.'})
         except Exception as e:
@@ -71,27 +94,28 @@ def start_recording():
 
 @app.route('/stop', methods=['POST'])
 def stop_recording():
-    global roslaunch_process, streaming_active
+    global roslaunch_process, forward_output, streaming_timer
     if roslaunch_process is not None:
         try:
-            # Stop the recording directly (no reconnecting logic)
-            roslaunch_process.terminate()
-            roslaunch_process.wait()
-            roslaunch_process = None
-            streaming_active = False
+            # Cancel any current timer (in case we're still in the initial 15-second window)
+            if streaming_timer is not None:
+                streaming_timer.cancel()
             
-            # Print "recording finished" message and insert 5 new lines
-            socketio.emit('log_update', {'data': "\n[Recording finished successfully.]\n" + "\n" * 5})
-
-            # Send status update if stop is successful
-            socketio.emit('status_update', {'status': 'finished recording'})
-            return jsonify({'status': 'Recording stopped successfully.'})
+            # Re-enable output forwarding for an additional 15 seconds.
+            forward_output = True
+            
+            # Set a new timer that will terminate the process after 1 seconds.
+            streaming_timer = threading.Timer(1, terminate_process)
+            streaming_timer.start()
+            
+            # Immediately send a message that the stop command was received.
+            socketio.emit('log_update', {'data': "\n[Stop command received, terminating in 1s, forwarding terminal output for max. 15 more seconds.]\n" + "\n" * 5})
+            socketio.emit('status_update', {'status': 'stopping recording'})
+            return jsonify({'status': 'Stop command received.'})
         except Exception as e:
             return jsonify({'status': f'Failed to stop recording: {str(e)}'}), 500
     else:
         return jsonify({'status': 'No active recording process.'}), 400
-
-
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
